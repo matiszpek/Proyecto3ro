@@ -57,7 +57,6 @@ bool apagado[2][3] = { { false, false, false }, { false, false, false } };
 byte perf_selec = 0;
 const byte max_vals = 7;
 String valores[max_vals];
-byte mods[2][192];
 RGB leds[2][192];
 uint16_t j;
 
@@ -105,16 +104,23 @@ void setup() {
     arriba.show();
   }
 }
+
 void loop() {
-  //while (Serial.available() == 0) { comprobarRainbow(); comu(); manejo(); delay(10);j++; if(j==256*5){j=0;}}
-  if (Serial.available() == 0) {
-    comprobarRainbow();
-    j++;
-    if (j == 256 * 5) { j = 0; }
+  while (Serial.available() == 0) {
+    comprobarRainbow(); 
+    comu(); 
+    manejo(); 
+    j++; 
+    if(j == 256 * 5) {
+      j = 0;
+    }
   }
-  Gryn();
+  if (Serial.available() > 0) { 
+    Gryn();  // Ejecuta la función Gryn cuando hay datos disponibles en el puerto serial
+  } 
 }
-void Gryn() {
+
+void control_leds() {
   String entrada = Serial.readStringUntil('\n');
   if (entrada != "") {
     Serial.println("recibido: " + entrada);
@@ -134,15 +140,15 @@ void Gryn() {
 void comprobarRainbow() {
   if (rainbows[perf_selec][0].rainbowing) {
     rainbowWallEffect8x8(rainbows[perf_selec][0].rDelay, 0);
-    Serial.println("8x8 rainbow");
+    //Serial.println("8x8 rainbow");
   }
   if (rainbows[perf_selec][1].rainbowing) {
     rainbowCycle(rainbows[perf_selec][1].rDelay, 64, 1, j);
-    Serial.println("izq rainbow");
+    //Serial.println("izq rainbow");
   }
   if (rainbows[perf_selec][2].rainbowing) {
     rainbowCycle(rainbows[perf_selec][2].rDelay, 96, 2, j);
-    Serial.println("der rainbow");
+    //Serial.println("der rainbow");
   }
 }
 void dApagadoRainbow(byte perf, byte num_led, bool aRain, bool aApa) {
@@ -400,9 +406,9 @@ void comu() {
 
     //reportamos por el puerto serial los datos recibidos
     digitalWrite(13, LOW);
-    Serial.println(datos[0]);
-    Serial.println(datos[1]);
-    Serial.println(datos[2]);
+    //Serial.println(datos[0]);
+    //Serial.println(datos[1]);
+    //Serial.println(datos[2]);
 
   } else {
     digitalWrite(13, HIGH);
@@ -423,8 +429,8 @@ void manejo() {
   }
 
   if (mSpeed >= 0) {
-    Serial.print("ALgo hace ");
-    Serial.println(mSpeed);
+    //Serial.print("ALgo hace ");
+    //Serial.println(mSpeed);
     analogWrite(m1s, mSpeed);  // adelante1 velocidad (0=no avanzar)
     digitalWrite(m1a, HIGH);   // direccion ade
     digitalWrite(m1b, LOW);
@@ -434,8 +440,8 @@ void manejo() {
     digitalWrite(m2b, LOW);
 
   } else {
-    Serial.print("ALgo hace ");
-    Serial.println(mSpeed);
+    //Serial.print("ALgo hace ");
+    //Serial.println(mSpeed);
     analogWrite(m1s, -mSpeed);  // atras velociad (0= no atras)
     digitalWrite(m1a, LOW);     // configuracion atras1
     digitalWrite(m1b, HIGH);
