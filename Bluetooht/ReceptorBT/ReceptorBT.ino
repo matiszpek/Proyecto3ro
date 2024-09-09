@@ -27,7 +27,7 @@ struct RGB {
   int R;
   int G;
   int B;
-}
+};
 
 int rec[mov + mod + com];  //recepcion datos para movimiento
 struct RGB luces[luc];     //datos de las luces
@@ -77,6 +77,11 @@ void setup() {
   // Inicialización del puerto serial
   Serial.begin(115200);
   Serial.println("Esperando conexión Bluetooth...");
+
+  rec[0]=0;
+  rec[1]=0;
+  rec[2]=1;
+  rec[3]=0;
 }
 
 void loop() {
@@ -101,7 +106,7 @@ void comu() {
   int previousIndex = 1;  // desde donde empieza el string (=1 por ser que el primero es de que es el dato)
 
   if (data[0] == 'M') {
-    for (int i = 0; i < (sizeof(rec) / sizeof(rec[0])); i++) {
+    for (int i = 0; i < (mov + mod + com); i++) {
       // Encontramos la siguiente coma
       commaIndex = data.indexOf(',', previousIndex);
       // Si no se encuentra más comas, se procesa el último valor
@@ -119,9 +124,9 @@ void comu() {
     c = rec[3];
   } else if (data[0] == 'L') {
     String actual = "";
-    for (int i = 0; i < (sizeof(luces) / sizeof(luces[0])); i++) {
+    for (int i = 0; i < luc; i++) {
       // Encontramos la siguiente coma
-      commaIndex = data.indexOf(',', previousIndex);
+      commaIndex = data.indexOf(',', inde1);
       // Si no se encuentra más comas, se procesa el último valor
       if (commaIndex == -1) {
         commaIndex = data.length();
@@ -131,11 +136,19 @@ void comu() {
       int inde1 = 0;
       for (int j = 0; j < 3; j++) {
         // Extraemos el valor entre los puntos
-        split1 = actual.indexOf('.', previousIndex);
+        split1 = actual.indexOf('.', inde1);
         if (split1 == -1) {
           split1 = data.length();
         }
-        luces[i].R = data.substring(inde1, split1).toInt(); // ........................
+        if(j==0){
+        luces[i].R = data.substring(inde1, split1).toInt(); // Instanciamos el Red del led I
+        }
+        if(j==1){
+        luces[i].G = data.substring(inde1, split1).toInt(); // Green
+        }
+        if(j==2){
+        luces[i].B = data.substring(inde1, split1).toInt(); // Blue
+        }
         inde1 = split1 + 1;
       }
       // Actualizamos el índice previo al nuevo comienzo
@@ -162,24 +175,40 @@ void manejo() {
   // Configuración de la dirección de los motores
   if (mSpeed >= 0) {
     // Movimiento hacia adelante
-    analogWrite(m1s, mSpeed);
+    ledcWrite(m1s, mSpeed);
     digitalWrite(m1a, HIGH);
     digitalWrite(m1b, LOW);
 
-    analogWrite(m2s, mSpeed);
+    ledcWrite(m2s, mSpeed);
     digitalWrite(m2a, HIGH);
     digitalWrite(m2b, LOW);
   } else {
     // Movimiento hacia atrás
-    analogWrite(m1s, -mSpeed);
+    ledcWrite(m1s, abs(mSpeed));
     digitalWrite(m1a, LOW);
     digitalWrite(m1b, HIGH);
 
-    analogWrite(m2s, -mSpeed);
+    ledcWrite(m2s, abs(mSpeed));
     digitalWrite(m2a, LOW);
     digitalWrite(m2b, HIGH);
   }
 }
 
 void luces() {
+   if (m == 1) {
+    for (int i = 0; i < luc; i++) {
+      arriba.setPixelColor(i, arriba.Color(luces[i].R, luces[i].G, luces[i].B));
+      arriba.show();
+      delay(10);
+    }
+  } else if (m == 2) {
+    rainbow();
+  }
+}
+
+void rainbow(){
+for (int i = 0; i < arriba.numPixels(); i++) {
+    arriba.setPixelColor(i, arriba.ColorHSV((i * 65536 / arriba.numPixels()), 255, 255));
+  }
+  arriba.show();
 }
