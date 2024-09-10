@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Control de Luces del Auto</title>
+</head>
+<body>
+    <h1>Control de Luces</h1>
+
+    <button onclick="sendColor('red')">Rojo</button>
+    <button onclick="sendColor('green')">Verde</button>
+    <button onclick="sendColor('blue')">Azul</button>
+
+    <script>
+        const ws = new WebSocket('ws://[TU_SERVIDOR]:3000'); // Cambia por la URL de tu servidor
+
+        ws.onopen = () => {
+            console.log('Conectado al servidor');
+        };
+
+        ws.onmessage = (event) => {
+            console.log('Mensaje del servidor:', event.data);
+        };
+
+        function sendColor(color) {
+            ws.send(JSON.stringify({ action: 'changeColor', color: color }));
+        }
+    </script>
+</body>
+</html>
