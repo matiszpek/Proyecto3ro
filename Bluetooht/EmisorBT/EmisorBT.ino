@@ -1,52 +1,66 @@
 #include <Arduino.h>
 #include <BluetoothSerial.h>
 
-#define servo A0
-#define motor A1
-#define modo 9
-
-// Creamos el objeto BluetoothSerial
 BluetoothSerial SerialBT;
 
-// vector con los datos a enviar
-int datos[4];
+// Pines para los potenciómetros y el botón
+#define potDireccion 34  // Potenciómetro para la dirección
+#define potVelocidad 35  // Potenciómetro para la velocidad
+#define botonLuces 32    // Botón para el modo de luces
+
+// Variables para almacenar los valores leídos
+int direccion = 0;
+int velocidad = 0;
+int modoLuces = 0;
+
+int estadoBotonAnterior = LOW;
+int estadoBotonActual = LOW;
+unsigned long tiempoAnterior = 0;
+const unsigned long debounceDelay = 50;  // Retraso para evitar rebotes
 
 void setup() {
-  pinMode(servo, INPUT);
-  pinMode(motor, INPUT);
-  pinMode(modo,INPUT_PULLUP);
+  // Inicialización del Bluetooth
+  SerialBT.begin("ControlCar");
 
-  // Inicializamos el Bluetooth con el nombre del dispositivo
-  SerialBT.begin("ESP32Car");  // Nombre del dispositivo Bluetooth
+  // Inicialización de los pines
+  pinMode(potDireccion, INPUT);
+  pinMode(potVelocidad, INPUT);
+  pinMode(botonLuces, INPUT_PULLUP);  // El botón está en modo pull-up
 
-  // Inicializamos el puerto serie para monitoreo
+  // Inicialización del puerto serial para depuración
   Serial.begin(115200);
 }
 
-void loop() { 
-  // Leemos los valores de los potenciómetros (o cualquier otro input)
-  datos[0] = analogRead(servo);   // Dirección del servo
-  datos[1] = analogRead(motor);  // Velocidad de los motores
-  datos[2]=  digitalRead(modo); // Modo luces
-  datos[3] = 9999;             // Valor fijo (cheuqer)
+void loop() {
+  // Leemos los valores de los potenciómetros
+  direccion = analogRead(potDireccion);
+  velocidad = analogRead(potVelocidad);
 
-  // Convertimos los valores en un formato de cadena
-  String mensaje = String(datos[0]) + "," + String(datos[1])+ "," + String(datos[2]) + String(datos[3]) + "\n";
+  // Leemos el estado actual del botón de luces
+  estadoBotonActual = digitalRead(botonLuces);
 
-  // Enviamos los datos por Bluetooth
-  SerialBT.println(mensaje);
+  // Verificamos si el botón fue presionado con un debounce
+  if (estadoBotonActual != estadoBotonAnterior) {
+    if (millis() - tiempoAnterior > debounceDelay) {
+      if (estadoBotonActual == LOW) {  // Cuando el botón es presionado
+        modoLuces = (modoLuces + 1) % 3;  // Cambiamos el modo de luces (0, 1, 2)
+        tiempoAnterior = millis();
+      }
+    }
+  }
+  estadoBotonAnterior = estadoBotonActual;
 
-  // Reportamos por el puerto serie los datos enviados para monitoreo
-  Serial.print("Servo: "); 
-  Serial.print(datos[0]); 
-  Serial.print(" | Velocidad: "); 
-  Serial.print(datos[1]);
-  Serial.print(" | Modo: ");  
-  Serial.print(datos[2]); 
-  Serial.print(" | Chequer: ");
-  Serial.print(datos[3]);
-  Serial.println(mensaje); 
+  // Creamos el string con los valores para enviar
+  String mensaje = "M," + String(direccion) + "," + String(velocidad) + "," + String(modoLuces) + ",1\n";
+  SerialBT.print(mensaje);
 
-  // Pequeña pausa antes del siguiente ciclo
-  delay(50);
+  // Para fines de depuración, imprimimos los valores en el monitor serial
+  Serial.print("Direccion: ");
+  Serial.print(direccion);
+  Serial.print(" Velocidad: ");
+  Serial.print(velocidad);
+  Serial.print(" Modo luces: ");
+  Serial.println(modoLuces);
+
+  delay(100);  // Pequeño retraso para evitar saturar la conexión Bluetooth
 }

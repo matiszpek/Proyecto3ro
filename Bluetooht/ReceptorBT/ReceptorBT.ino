@@ -4,16 +4,26 @@
 
 #include <Adafruit_NeoPixel.h>
 
-#define pin_tira 7
+#define pin_tira 2
 
 // Pines de motores
-#define m1s 14  // PWM Motor 1
-#define m1a 26  // Motor 1 A
-#define m1b 27  // Motor 1 B
+#define m1s 26  // PWM Motor 1
+#define m1a 25  // Motor 1 A
+#define m1b 33  // Motor 1 B
 
-#define m2s 12  // PWM Motor 2
-#define m2a 25  // Motor 2 A
-#define m2b 33  // Motor 2 B
+#define m2s 27  // PWM Motor 2
+#define m2a 14  // Motor 2 A
+#define m2b 12  // Motor 2 B
+
+// Especificacion para control de motores en esp32
+#define PWM_FREQ 5000  // Frecuencia del PWM, 5000 Hz es un buen valor
+#define PWM_RESOLUTION 8  // Resolución de 8 bits (valores de 0 a 255)
+
+// Canal PWM para el Motor 1
+#define M1_PWM_CHANNEL 0  // Canal 0 para el Motor 1
+// Canal PWM para el Motor 2
+#define M2_PWM_CHANNEL 1  // Canal 1 para el Motor 2
+
 
 // Configuración de Bluetooth
 BluetoothSerial SerialBT;
@@ -63,9 +73,16 @@ void setup() {
   pinMode(m2s, OUTPUT);
   pinMode(m2a, OUTPUT);
   pinMode(m2b, OUTPUT);
+  
+// Configuración de PWM para los motores
+  ledcSetup(M1_PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
+  ledcAttachPin(m1s, M1_PWM_CHANNEL);
+
+  ledcSetup(M2_PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
+  ledcAttachPin(m2s, M2_PWM_CHANNEL);
 
   arriba.begin();
-  arriba.setBrightness(255);
+  arriba.setBrightness(150);
 
   //debuger test tira
   for (int i = 0; i < 64; i++) {
@@ -98,6 +115,9 @@ void loop() {
     // Cambio en el modo de luces
     luces();
   }
+  else{
+    Serial.println("Bluetooth not available");
+  }
 }
 
 void comu() {
@@ -126,7 +146,7 @@ void comu() {
     String actual = "";
     for (int i = 0; i < luc; i++) {
       // Encontramos la siguiente coma
-      commaIndex = data.indexOf(',', inde1);
+      commaIndex = data.indexOf(',', previousIndex);
       // Si no se encuentra más comas, se procesa el último valor
       if (commaIndex == -1) {
         commaIndex = data.length();
@@ -175,20 +195,20 @@ void manejo() {
   // Configuración de la dirección de los motores
   if (mSpeed >= 0) {
     // Movimiento hacia adelante
-    ledcWrite(m1s, mSpeed);
+    ledcWrite(M1_PWM_CHANNEL, mSpeed);
     digitalWrite(m1a, HIGH);
     digitalWrite(m1b, LOW);
 
-    ledcWrite(m2s, mSpeed);
+    ledcWrite(M2_PWM_CHANNEL, mSpeed);
     digitalWrite(m2a, HIGH);
     digitalWrite(m2b, LOW);
   } else {
     // Movimiento hacia atrás
-    ledcWrite(m1s, abs(mSpeed));
+    ledcWrite(M1_PWM_CHANNEL, abs(mSpeed));
     digitalWrite(m1a, LOW);
     digitalWrite(m1b, HIGH);
 
-    ledcWrite(m2s, abs(mSpeed));
+    ledcWrite(M2_PWM_CHANNEL, abs(mSpeed));
     digitalWrite(m2a, LOW);
     digitalWrite(m2b, HIGH);
   }
