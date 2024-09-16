@@ -1,6 +1,23 @@
+/*#include <WiFi.h>
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println();
+  Serial.print("Direccion MAC del ESP32 receptor: ");
+  Serial.println(WiFi.macAddress());
+}
+
+void loop() {
+  // No se necesita loop para este propósito
+}
+*/
+
+
 #include <Arduino.h>
+#include <analogWrite.h>
 #include <BluetoothSerial.h>
-#include <Servo.h>
+//#include <Servo.h>
+#include <ESP32Servo.h>
 
 #include <Adafruit_NeoPixel.h>
 
@@ -14,15 +31,6 @@
 #define m2s 27  // PWM Motor 2
 #define m2a 14  // Motor 2 A
 #define m2b 12  // Motor 2 B
-
-// Especificacion para control de motores en esp32
-#define PWM_FREQ 5000  // Frecuencia del PWM, 5000 Hz es un buen valor
-#define PWM_RESOLUTION 8  // Resolución de 8 bits (valores de 0 a 255)
-
-// Canal PWM para el Motor 1
-#define M1_PWM_CHANNEL 0  // Canal 0 para el Motor 1
-// Canal PWM para el Motor 2
-#define M2_PWM_CHANNEL 1  // Canal 1 para el Motor 2
 
 
 // Configuración de Bluetooth
@@ -40,7 +48,7 @@ struct RGB {
 };
 
 int rec[mov + mod + com];  //recepcion datos para movimiento
-struct RGB luces[luc];     //datos de las luces
+RGB luz[luc];     //datos de las luces
 
 // Variables para los datos recibidos
 int l;  //   servo
@@ -63,23 +71,17 @@ void setup() {
   SerialBT.begin("ESP32Car");  // Nombre del dispositivo Bluetooth
 
   // Inicialización del servo
-  servo.attach(13);  // pin del servo
+  servo.attach(18);  // pin del servo
 
   // Inicialización de los pines de los motores
-  pinMode(m1s, OUTPUT);
+  // para traduccion a esp32 uso libreria analog...
+  analogWriteResolution(m1s, 12);
   pinMode(m1a, OUTPUT);
   pinMode(m1b, OUTPUT);
 
-  pinMode(m2s, OUTPUT);
+  analogWriteResolution(m2s, 12);
   pinMode(m2a, OUTPUT);
   pinMode(m2b, OUTPUT);
-  
-// Configuración de PWM para los motores
-  ledcSetup(M1_PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
-  ledcAttachPin(m1s, M1_PWM_CHANNEL);
-
-  ledcSetup(M2_PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
-  ledcAttachPin(m2s, M2_PWM_CHANNEL);
 
   arriba.begin();
   arriba.setBrightness(150);
@@ -113,7 +115,7 @@ void loop() {
     manejo();
 
     // Cambio en el modo de luces
-    luces();
+    luz();
   }
   else{
     Serial.println("Bluetooth not available");
@@ -122,6 +124,7 @@ void loop() {
 
 void comu() {
   String data = SerialBT.readStringUntil('\n');
+  Serialprintln(data);
   int commaIndex = 0;
   int previousIndex = 1;  // desde donde empieza el string (=1 por ser que el primero es de que es el dato)
 
@@ -195,20 +198,20 @@ void manejo() {
   // Configuración de la dirección de los motores
   if (mSpeed >= 0) {
     // Movimiento hacia adelante
-    ledcWrite(M1_PWM_CHANNEL, mSpeed);
+    analogWrite(M1_PWM_CHANNEL, mSpeed);
     digitalWrite(m1a, HIGH);
     digitalWrite(m1b, LOW);
 
-    ledcWrite(M2_PWM_CHANNEL, mSpeed);
+    analogWrite(M2_PWM_CHANNEL, mSpeed);
     digitalWrite(m2a, HIGH);
     digitalWrite(m2b, LOW);
   } else {
     // Movimiento hacia atrás
-    ledcWrite(M1_PWM_CHANNEL, abs(mSpeed));
+    analogWrite(M1_PWM_CHANNEL, abs(mSpeed));
     digitalWrite(m1a, LOW);
     digitalWrite(m1b, HIGH);
 
-    ledcWrite(M2_PWM_CHANNEL, abs(mSpeed));
+    analogWrite(M2_PWM_CHANNEL, abs(mSpeed));
     digitalWrite(m2a, LOW);
     digitalWrite(m2b, HIGH);
   }

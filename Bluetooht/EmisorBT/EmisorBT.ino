@@ -18,6 +18,8 @@ int estadoBotonActual = LOW;
 unsigned long tiempoAnterior = 0;
 const unsigned long debounceDelay = 50;  // Retraso para evitar rebotes
 
+const char* macReceptor = "AA:BB:CC:DD:EE:FF";  // Reemplaza con la dirección MAC del ESP32 receptor
+
 void setup() {
   // Inicialización del Bluetooth
   SerialBT.begin("ControlCar");
@@ -33,8 +35,8 @@ void setup() {
 
 void loop() {
   // Leemos los valores de los potenciómetros
-  direccion = analogRead(potDireccion);
-  velocidad = analogRead(potVelocidad);
+  direccion = Serial.readStringUntil('\n').toInt();//analogRead(potDireccion);
+  //velocidad = //analogRead(potVelocidad);
 
   // Leemos el estado actual del botón de luces
   estadoBotonActual = digitalRead(botonLuces);
