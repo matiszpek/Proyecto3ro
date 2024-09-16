@@ -46,7 +46,9 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int len) {
 
 // Inicializar ESP-NOW
 void initESPNow() {
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP);  // Configurar el modo Access Point
+  WiFi.softAP("RX_Receptor", "12345678");  // Nombre y contraseña del AP (SSID comienza con "RX")
+
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error al inicializar ESP-NOW");
     return;
@@ -65,7 +67,7 @@ void processBluetoothCommand() {
   if (SerialBT.available()) {
     String command = SerialBT.readStringUntil('\n');  // Leer comando
     Serial.print(command);
-    // Comandos RGB individuales para cada píxel, por ejemplo: "R,G,B"
+    // Comandos RGB individuales para cada píxel, por ejemplo: "index,r,g,b"
     int index = 0;  // Posición del píxel a cambiar
     int r, g, b;
     if (sscanf(command.c_str(), "%d,%d,%d,%d", &index, &r, &g, &b) == 4) {
