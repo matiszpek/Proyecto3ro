@@ -30,10 +30,11 @@ typedef struct struct_message {
 struct_message incomingMessage;
 
 // Callback cuando recibimos un mensaje por ESP-NOW
-void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int len) {
+void OnDataRecv(const esp_now_recv_info *info, const uint8_t *data, int len) {
   memcpy(&incomingMessage, data, sizeof(incomingMessage));
-
-  // Controlar Motor 1
+  Serial.println(incomingMessage.motor1Direction);
+  Serial.println(incomingMessage.motor2Direction);
+/*   // Controlar Motor 1
   analogWrite(m1s, incomingMessage.motor1Speed);
   digitalWrite(m1a, incomingMessage.motor1Direction ? LOW : HIGH);
   digitalWrite(m1b, incomingMessage.motor1Direction ? HIGH : LOW);
@@ -41,7 +42,7 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int len) {
   // Controlar Motor 2
   analogWrite(m2s, incomingMessage.motor2Speed);
   digitalWrite(m2a, incomingMessage.motor2Direction ? LOW : HIGH);
-  digitalWrite(m2b, incomingMessage.motor2Direction ? HIGH : LOW);
+  digitalWrite(m2b, incomingMessage.motor2Direction ? HIGH : LOW); */
 }
 
 // Inicializar ESP-NOW
@@ -67,7 +68,7 @@ void processBluetoothCommand() {
   if (SerialBT.available()) {
     String command = SerialBT.readStringUntil('\n');  // Leer comando
     Serial.print(command);
-    // Comandos RGB individuales para cada píxel, por ejemplo: "index,r,g,b"
+/*     // Comandos RGB individuales para cada píxel, por ejemplo: "index,r,g,b"
     int index = 0;  // Posición del píxel a cambiar
     int r, g, b;
     if (sscanf(command.c_str(), "%d,%d,%d,%d", &index, &r, &g, &b) == 4) {
@@ -76,6 +77,7 @@ void processBluetoothCommand() {
         arriba.show();
       }
     }
+  } */
   }
 }
 

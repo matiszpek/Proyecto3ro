@@ -55,8 +55,8 @@ void initESPNow() {
 // Simulación de controles para motores
 void simulateMotorControls() {
   // Aquí puedes poner tu código para capturar los valores reales de los controles
-  outgoingMessage.motor1Speed = analogRead(34); // Ejemplo de lectura de un pin analógico (GPIO 34)
-  outgoingMessage.motor2Speed = analogRead(35); // Ejemplo de lectura de otro pin analógico (GPIO 35)
+  outgoingMessage.motor1Speed = 600;//analogRead(34); // Ejemplo de lectura de un pin analógico (GPIO 34)
+  outgoingMessage.motor2Speed = 25;//analogRead(35); // Ejemplo de lectura de otro pin analógico (GPIO 35)
   
   // Control de dirección (ADELANTE o ATRÁS) dependiendo de condiciones o entradas
   outgoingMessage.motor1Direction = outgoingMessage.motor1Speed > 500;  // Lógica simple de ejemplo
