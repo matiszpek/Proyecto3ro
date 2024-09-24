@@ -21,20 +21,20 @@ Adafruit_NeoPixel arriba = Adafruit_NeoPixel(64, pin_tira, NEO_GRB + NEO_KHZ800)
 
 // Estructura para el envío de datos por ESP-NOW (control de motores)
 typedef struct struct_message {
-  int motor1Speed;
-  int motor2Speed;
+  uint8_t motor1Speed;
+  uint8_t motor2Speed;
   bool motor1Direction;  // 0: Adelante, 1: Atrás
   bool motor2Direction;
-} struct_message;
+} message;
 
-struct_message incomingMessage;
+message incomingMessage;
 
 // Callback cuando recibimos un mensaje por ESP-NOW
 void OnDataRecv(const esp_now_recv_info *info, const uint8_t *data, int len) {
   memcpy(&incomingMessage, data, sizeof(incomingMessage));
   Serial.println(incomingMessage.motor1Direction);
   Serial.println(incomingMessage.motor2Direction);
-/*   // Controlar Motor 1
+  // Controlar Motor 1
   analogWrite(m1s, incomingMessage.motor1Speed);
   digitalWrite(m1a, incomingMessage.motor1Direction ? LOW : HIGH);
   digitalWrite(m1b, incomingMessage.motor1Direction ? HIGH : LOW);
@@ -42,16 +42,16 @@ void OnDataRecv(const esp_now_recv_info *info, const uint8_t *data, int len) {
   // Controlar Motor 2
   analogWrite(m2s, incomingMessage.motor2Speed);
   digitalWrite(m2a, incomingMessage.motor2Direction ? LOW : HIGH);
-  digitalWrite(m2b, incomingMessage.motor2Direction ? HIGH : LOW); */
+  digitalWrite(m2b, incomingMessage.motor2Direction ? HIGH : LOW);
 }
 
 // Inicializar ESP-NOW
 void initESPNow() {
-  WiFi.mode(WIFI_AP);  // Configurar el modo Access Point
+  WiFi.mode(WIFI_AP);                      // Configurar el modo Access Point
   WiFi.softAP("RX_Receptor", "12345678");  // Nombre y contraseña del AP (SSID comienza con "RX")
 
   if (esp_now_init() != ESP_OK) {
-    Serial.println("Error al inicializar ESP-NOW");
+    Serial.println(F("Error al inicializar ESP-NOW"));
     return;
   }
   esp_now_register_recv_cb(OnDataRecv);  // Callback para recepción de datos
@@ -60,26 +60,26 @@ void initESPNow() {
 // Configuración de Bluetooth
 void setupBluetooth() {
   SerialBT.begin("ESP32_Luces");  // Nombre Bluetooth
-  Serial.println("Bluetooth listo para conectar");
+  Serial.println(F("Bluetooth listo para conectar"));
 }
 
 // Procesar comandos recibidos por Bluetooth para controlar los NeoPixel
 void processBluetoothCommand() {
   if (SerialBT.available()) {
-    String command = SerialBT.readStringUntil('\n');  // Leer comando
-    Serial.print(command);
-/*     // Comandos RGB individuales para cada píxel, por ejemplo: "index,r,g,b"
+    char command[3 2];
+    SerialBT.readBytes(command, sizeof(command));
+    // Comandos RGB individuales para cada píxel, por ejemplo: "index,r,g,b"
     int index = 0;  // Posición del píxel a cambiar
     int r, g, b;
-    if (sscanf(command.c_str(), "%d,%d,%d,%d", &index, &r, &g, &b) == 4) {
+    if (sscanf(command, "%d,%d,%d,%d", &index, &r, &g, &b) == 4) {
       if (index >= 0 && index < arriba.numPixels()) {
         arriba.setPixelColor(index, arriba.Color(r, g, b));  // Setear color en el píxel
         arriba.show();
       }
     }
-  } */
   }
 }
+
 
 void setup() {
   Serial.begin(115200);

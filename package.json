@@ -1,0 +1,18 @@
+{
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  },
+  "name": "proyecto3ro",
+  "version": "1.0.0",
+  "description": "Un auto a control remoto por radiofrecuencia powered by arduino. Recovered by NeoPixel personalizable a estilo paint con una applicacion de escritorio de visual studio",
+  "main": "index.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "author": "",
+  "license": "ISC"
+}

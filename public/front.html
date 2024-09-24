@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Control de Luces</title>
+  </head>
+  <body>
+    <h1>Configuración de Luces</h1>
+    <button onclick="sendLightConfig()">Enviar Configuración</button>
+
+    <script>
+      const socket = new WebSocket("ws://localhost:3000");
+
+      socket.onopen = function (event) {
+        console.log("Conectado al WebSocket");
+      };
+
+      function sendLightConfig() {
+        const config = { lights: "on", color: "#FF0000" }; // Ejemplo de configuración
+        socket.send(JSON.stringify(config));
+      }
+
+      socket.onmessage = function (event) {
+        console.log("Mensaje del servidor: " + event.data);
+      };
+    </script>
+  </body>
+</html>
