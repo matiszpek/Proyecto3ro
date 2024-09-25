@@ -1,113 +1,78 @@
-#include <WiFi.h>
-#include <WebSocketsClient.h>
 #include <esp_now.h>
+#include <Adafruit_NeoPixel.h>
 
+// Pines de motores
+#define m1s 26  // PWM Motor 1
+#define m1a 25  // Motor 1 A
+#define m1b 33  // Motor 1 B
+#define m2s 27  // PWM Motor 2
+#define m2a 14  // Motor 2 A
+#define m2b 12  // Motor 2 B
+
+// Configuración de NeoPixel
+#define pin_tira 18
 #define NUM_PIXELS 64
-#define PIXELS_PER_PACKET 16
-#define MESSAGE_LENGTH (PIXELS_PER_PACKET * 3)
-#define WEBSOCKET_BUFFER_SIZE 250
+Adafruit_NeoPixel arriba = Adafruit_NeoPixel(NUM_PIXELS, pin_tira, NEO_GRB + NEO_KHZ800);
 
-uint8_t neoPixelData[NUM_PIXELS * 3];  // Para almacenar los datos de todos los píxeles
+// Estructura de mensaje
+typedef struct struct_message {
+  int messageType;  // 0 = Motores, 1 = Luces
+  int motor1Speed;
+  int motor2Speed;
+  bool motor1Direction;  // 0: Adelante, 1: Atrás
+  bool motor2Direction;
+  int ledIndex;  // Índice del píxel a controlar
+  int r, g, b;   // Valores RGB para el píxel
+} struct_message;
 
-WebSocketsClient webSocket;
+struct_message incomingMessage;
 
-// Función de callback ESP-NOW
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("\r\nEstado de envío:\t");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Enviado" : "Fallo");
-}
+// Callback cuando recibimos un mensaje por ESP-NOW
+void OnDataRecv(const esp_now_recv_info *info, const uint8_t *data, int len) {
+  memcpy(&incomingMessage, data, sizeof(incomingMessage));
 
-// Configurar ESP-NOW
-void setupESPNow() {
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("Error iniciando ESP-NOW");
-    return;
-  }
-  esp_now_register_send_cb(OnDataSent);
-}
+  if (incomingMessage.messageType == 0) {
+    // Control de motores
+    analogWrite(m1s, incomingMessage.motor1Speed);
+    digitalWrite(m1a, incomingMessage.motor1Direction ? LOW : HIGH);
+    digitalWrite(m1b, incomingMessage.motor1Direction ? HIGH : LOW);
 
-// Enviar bloque de datos de NeoPixel en partes
-void enviarDatosNeoPixelDividido() {
-  for (int i = 0; i < NUM_PIXELS; i += PIXELS_PER_PACKET) {
-    uint8_t buffer[MESSAGE_LENGTH];
-    memcpy(buffer, &neoPixelData[i * 3], MESSAGE_LENGTH);
-    Serial.println(buffer);
-    esp_now_send(NULL, buffer, sizeof(buffer));  // Envía al receptor registrado
-    delay(10);  // Delay para evitar sobrecargar el canal
-  }
-}
-
-// Función de recepción de datos WebSocket
-void handleWebSocketMessage(String message) {
-  // Asumiendo que recibes los datos en formato "index,R,G,B,index,R,G,B,..."
-  int index = 0;
-  char *token = strtok((char *)message.c_str(), ",");
-  while (token != NULL) {
-    int pixelIndex = atoi(token);  // Índice del píxel
-    token = strtok(NULL, ",");
-    if (token == NULL) break;
-    int r = atoi(token);
-    token = strtok(NULL, ",");
-    if (token == NULL) break;
-    int g = atoi(token);
-    token = strtok(NULL, ",");
-    if (token == NULL) break;
-    int b = atoi(token);
-
-    // Guardar los valores RGB en el array de píxeles
-    neoPixelData[pixelIndex * 3] = r;
-    neoPixelData[pixelIndex * 3 + 1] = g;
-    neoPixelData[pixelIndex * 3 + 2] = b;
-
-    token = strtok(NULL, ",");
-  }
-
-  // Enviar datos a través de ESP-NOW
-  enviarDatosNeoPixelDividido();
-}
-
-// Función de callback de WebSocket para recibir mensajes
-void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
-  switch (type) {
-    case WStype_DISCONNECTED:
-      Serial.println("WebSocket Desconectado");
-      break;
-    case WStype_CONNECTED:
-      Serial.println("WebSocket Conectado");
-      webSocket.sendTXT("Conectado");
-      break;
-    case WStype_TEXT:
-      Serial.printf("Mensaje Recibido: %s\n", payload);
-      handleWebSocketMessage((char*)payload);
-      break;
-    case WStype_BIN:
-      Serial.println("Mensaje Binario recibido");
-      break;
+    analogWrite(m2s, incomingMessage.motor2Speed);
+    digitalWrite(m2a, incomingMessage.motor2Direction ? LOW : HIGH);
+    digitalWrite(m2b, incomingMessage.motor2Direction ? HIGH : LOW);
+  } 
+  else if (incomingMessage.messageType == 1) {
+    // Control de luces NeoPixel
+    if (incomingMessage.ledIndex >= 0 && incomingMessage.ledIndex < arriba.numPixels()) {
+      arriba.setPixelColor(incomingMessage.ledIndex, arriba.Color(incomingMessage.r, incomingMessage.g, incomingMessage.b));
+      arriba.show();
+    }
   }
 }
 
 void setup() {
   Serial.begin(115200);
-  
-  // Conexión WiFi
-  WiFi.begin("IOTB", "inventaronelVAR");  // Configura tu WiFi aquí
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Conectando a WiFi...");
-  }
-  Serial.println("Conectado a WiFi");
-
-  // Inicializar WebSocket
-  webSocket.begin(".lclx.io", 80, "/ws");  // Cambia el URL y puerto
-  webSocket.onEvent(webSocketEvent);
 
   // Configurar ESP-NOW
-  setupESPNow();
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error iniciando ESP-NOW");
+    return;
+  }
+  
+  // Actualiza el callback de recepción de ESP-NOW con el nuevo formato de función
+  esp_now_register_recv_cb(OnDataRecv);
 
-  // Rellenar con valores iniciales (negros)
-  memset(neoPixelData, 0, sizeof(neoPixelData));
+  // Configurar NeoPixel
+  arriba.begin();
+  arriba.setBrightness(255);
+
+  // Configurar pines de motores
+  pinMode(m1a, OUTPUT);
+  pinMode(m1b, OUTPUT);
+  pinMode(m2a, OUTPUT);
+  pinMode(m2b, OUTPUT);
 }
 
 void loop() {
-  webSocket.loop();
+  // El receptor no necesita hacer nada en el loop, todo se maneja a través de ESP-NOW
 }
