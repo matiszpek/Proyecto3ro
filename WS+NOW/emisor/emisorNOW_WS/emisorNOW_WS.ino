@@ -1,127 +1,104 @@
+#include <esp_now.h>
 #include <WiFi.h>
 #include <WebSocketsClient.h>
-#include <esp_now.h>
+#include <Encoder.h>
 
-// Configuración
-#define NUM_PIXELS 64
-#define PIXELS_PER_PACKET 16
-#define MESSAGE_LENGTH (PIXELS_PER_PACKET * 3)
-#define WEBSOCKET_BUFFER_SIZE 250
+// Pines de encoders
+#define encoderPinA1 2
+#define encoderPinB1 3
+#define encoderPinA2 4
+#define encoderPinB2 5
 
-// WebSocket
+// Configuración de WebSocket
 WebSocketsClient webSocket;
+const char* websocket_server = "wss://mi_servidor_websocket.com"; // cambiar esto por la pag
 
-// Estructura de mensaje para enviar por ESP-NOW
-typedef struct struct_message {
-  int messageType;  // 0 = Motores, 1 = Luces
-  int motor1Speed;
-  int motor2Speed;
-  bool motor1Direction;  // 0: Adelante, 1: Atrás
-  bool motor2Direction;
-  int ledIndex;  // Índice del píxel a controlar
-  int r, g, b;   // Valores RGB para el píxel
-} struct_message;
+// Configuración de ESP-NOW
+uint8_t receptorAddress[] = {0x24, 0x6F, 0x28, 0xAE, 0xD4, 0xC8};  // MAC del receptor
 
-struct_message outgoingMessage;
+// Estructura para las luces
+typedef struct struct_luces {
+  int ledIndex;
+  int r, g, b;
+} struct_luces;
 
-// Función de callback de ESP-NOW
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("\r\nEstado de envío:\t");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Enviado" : "Fallo");
-}
+// Estructura para los motores
+typedef struct struct_motores {
+  long encoderValue1;
+  long encoderValue2;
+} struct_motores;
 
-// Configurar ESP-NOW
-void setupESPNow() {
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("Error iniciando ESP-NOW");
-    return;
-  }
-  esp_now_register_send_cb(OnDataSent);
-}
+struct_luces luces;
+struct_motores motores;
 
-// Función para enviar datos a través de ESP-NOW
-void enviarDatosESPNow() {
-  esp_now_send(NULL, (uint8_t *)&outgoingMessage, sizeof(outgoingMessage));
-}
+// Inicializamos los encoders
+Encoder encoder1(encoderPinA1, encoderPinB1);
+Encoder encoder2(encoderPinA2, encoderPinB2);
 
-// Procesar mensajes de WebSocket
-void handleWebSocketMessage(String message) {
-  // Asumiendo que los mensajes de la página web contienen "type,speed1,direction1,speed2,direction2" para motores
-  // y "type,index,R,G,B" para luces
-  char *token = strtok((char *)message.c_str(), ",");
-  int messageType = atoi(token);  // Tipo de mensaje
-
-  if (messageType == 0) {
-    // Mensaje de control de motores
-    outgoingMessage.messageType = 0;  // Motores
-    token = strtok(NULL, ",");
-    outgoingMessage.motor1Speed = atoi(token);
-    token = strtok(NULL, ",");
-    outgoingMessage.motor1Direction = atoi(token);
-    token = strtok(NULL, ",");
-    outgoingMessage.motor2Speed = atoi(token);
-    token = strtok(NULL, ",");
-    outgoingMessage.motor2Direction = atoi(token);
-
-    // Enviar datos de motores por ESP-NOW
-    enviarDatosESPNow();
-
-  } else if (messageType == 1) {
-    // Mensaje de control de luces
-    outgoingMessage.messageType = 1;  // Luces
-    token = strtok(NULL, ",");
-    outgoingMessage.ledIndex = atoi(token);
-    token = strtok(NULL, ",");
-    outgoingMessage.r = atoi(token);
-    token = strtok(NULL, ",");
-    outgoingMessage.g = atoi(token);
-    token = strtok(NULL, ",");
-    outgoingMessage.b = atoi(token);
-
-    // Enviar datos de luces por ESP-NOW
-    enviarDatosESPNow();
+// Función para enviar datos por ESP-NOW
+void enviarESPNow(void* data, size_t dataSize) {
+  esp_err_t result = esp_now_send(receptorAddress, (uint8_t *)data, dataSize);
+  if (result != ESP_OK) {
+    Serial.println("Error al enviar mensaje");
   }
 }
 
-// Callback de eventos de WebSocket
-void webSocketEvent(WStype_t type, uint8_t *payload, size_t length) {
+// WebSocket callback
+void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED:
-      Serial.println("WebSocket Desconectado");
+      Serial.println("WebSocket desconectado");
       break;
     case WStype_CONNECTED:
-      Serial.println("WebSocket Conectado");
-      webSocket.sendTXT("Conectado");
+      Serial.println("WebSocket conectado");
       break;
     case WStype_TEXT:
-      Serial.printf("Mensaje Recibido: %s\n", payload);
-      handleWebSocketMessage(String((char*)payload));
-      break;
-    case WStype_BIN:
-      Serial.println("Mensaje Binario recibido");
+      // Parsear los datos de la configuración de luces
+      sscanf((char*)payload, "%d,%d,%d,%d", &luces.ledIndex, &luces.r, &luces.g, &luces.b);
+      
+      // Enviar configuración de luces por ESP-NOW
+      enviarESPNow(&luces, sizeof(luces));
       break;
   }
 }
 
 void setup() {
   Serial.begin(115200);
-
-  // Conexión WiFi
-  WiFi.begin("IOTB", "inventaronelVAR");  // Configura tu WiFi aquí
+  
+  // Conectar a WiFi
+  WiFi.begin("IOT", "inventaronelVAR");
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Conectando a WiFi...");
   }
-  Serial.println("Conectado a WiFi");
-
-  // Inicializar WebSocket
-  webSocket.begin(".lclx.io", 80, "/ws");  // Cambia el URL y puerto
+  
+  // Configuración de WebSocket
+  webSocket.begin(websocket_server);
   webSocket.onEvent(webSocketEvent);
 
-  // Configurar ESP-NOW
-  setupESPNow();
+  // Configuración de ESP-NOW
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error inicializando ESP-NOW");
+    return;
+  }
+
+  esp_now_add_peer(receptorAddress, ESP_NOW_ROLE_SLAVE, 1, NULL, 0);
+
+  // Configuración de encoders
+  encoder1.write(0);
+  encoder2.write(0);
 }
 
 void loop() {
+  // Leer los encoders
+  motores.encoderValue1 = encoder1.read();
+  motores.encoderValue2 = encoder2.read();
+
+  // Enviar valores de los encoders por ESP-NOW
+  enviarESPNow(&motores, sizeof(motores));
+
+  // Manejar WebSocket
   webSocket.loop();
+  
+  delay(100);  // Control de tiempo
 }
